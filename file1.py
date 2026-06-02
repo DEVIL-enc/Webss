@@ -8,7 +8,7 @@ import random
 import threading
 
 # ضع توكن البوت الخاص بك هنا
-TOKEN = "6496923968:AAEy6aMJeD4uPZIzMqWhjVBJakoWee9sZeo:"
+TOKEN = "6496923968:AAEy6aMJeD4uPZIzMqWhjVBJakoWee9sZeo"
 
 # ضع الـ ID الخاص بك هنا (مهم جداً للوحة التحكم)
 ADMIN_ID = 1707478010
