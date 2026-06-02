@@ -3,7 +3,7 @@
 import requests, re, base64, json, time, random, os, threading
 from user_agent import generate_user_agent
 
-BOT_TOKEN = "8324893644:AAHSduILo0w997raRQkrWtPqKY2vkISy4AI"
+BOT_TOKEN = "7216101176:AAHKpj-qpaaOE8oC8xmrH8MQ1zf5ua8TQ-4"
 active_scans = {}
 
 def get_bin_info(cc_num):
