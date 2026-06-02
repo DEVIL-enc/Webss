@@ -1,9 +1,11 @@
-#بوت فحص على بوابه ⚽️ ، - paypal costume donate تحديث تلقائي 😛. 
+# بوت فحص على بوابه ⚽️ ، - paypal costume donate تحديث تلقائي 😛. 
 
-import requests,re, base64, json, time, random, os, threading
+import requests, re, base64, json, time, random, os, threading
 from user_agent import generate_user_agent
-BOT_TOKEN = "6496923968:AAEy6aMJeD4uPZIzMqWhjVBJakoWee9sZeo"
+
+BOT_TOKEN = "8324893644:AAHSduILo0w997raRQkrWtPqKY2vkISy4AI"
 active_scans = {}
+
 def get_bin_info(cc_num):
     bin_num = cc_num[:6]
     try:
@@ -72,6 +74,7 @@ def look(cc_line):
         if 'insufficient_funds' in res_text: return "INSUFFICIENT_FUNDS"
         return "DECLINED"
     except: return "ERROR"
+
 def send_telegram(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
@@ -82,6 +85,7 @@ def send_telegram(chat_id, text, reply_markup=None):
     except Exception as e:
         print(f"Send error: {e}")
         return None
+
 def edit_telegram(chat_id, message_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText"
     data = {"chat_id": chat_id, "message_id": message_id, "text": text, "parse_mode": "HTML"}
@@ -92,6 +96,7 @@ def edit_telegram(chat_id, message_id, text, reply_markup=None):
     except Exception as e:
         print(f"Edit error: {e}")
         return None
+
 def check_single_card(chat_id, line):
     try:
         initial_msg = "<b>Gateway :</b> #PayPal_Custom ($1.00)\n<b>By :</b> َِ𝗧َِ𝗡َِ𝗧 ."
@@ -170,6 +175,9 @@ def start_checker(chat_id, combo_lines, gateway_name, initial_message_id):
         "current": 0
     }
     active_scans[chat_id]["message_id"] = initial_message_id
+    
+    last_update_time = 0  # متغير للتحكم بوقت تحديث الزر
+
     for idx, line in enumerate(combo_lines):
         if active_scans.get(chat_id, {}).get("stop"):
             final_text = f"<b>Gateway:</b> {gateway_name}\n<b>By:</b> 𝗧َِ𝗡َِ𝗧"
@@ -192,31 +200,33 @@ def start_checker(chat_id, combo_lines, gateway_name, initial_message_id):
             stats["approved"] += 1
         else:
             stats["declined"] += 1
-        status_msg = f"<b>Gateway:</b> {gateway_name}\n<b>By:</b> 𝗧َِ𝗡َِ𝗧"
-        if result == "CHARGED":
-            status_text = "CHARGED"
-        elif result == "INSUFFICIENT_FUNDS":
-            status_text = "APPROVED"
-        elif result == "DECLINED":
-            status_text = "DECLINED"
-        else:
-            status_text = "ORDER_NOT_APPROVED"  
-        buttons = {
-            "inline_keyboard": [
-                [{"text": f"💳 {line}", "callback_data": "card"}],
-                [{"text": f"📊 Status: {status_text}", "callback_data": "status"}],
-                [
-                    {"text": f"💰 Charged ➜ [ {stats['charged']} ]", "callback_data": "charged"},
-                    {"text": f"✅ Approved ➜ [ {stats['approved']} ]", "callback_data": "approved"}
-                ],
-                [
-                    {"text": f"❌ Declined ➜ [ {stats['declined']} ]", "callback_data": "declined"},
-                    {"text": f"📂 Cards ➜ [ {stats['current']}/{stats['total']} ]", "callback_data": "cards"}
-                ],
-                [{"text": "🛑 STOP", "callback_data": f"stop_{chat_id}"}]
-            ]
-        }        
-        edit_telegram(chat_id, initial_message_id, status_msg, buttons)    
+        
+        # تحديث الأزرار فقط إذا مرت ثانيتين أو إذا كان الكارت الأخير لمنع تجميد البوت
+        current_time = time.time()
+        if (current_time - last_update_time >= 2.5) or (idx + 1 == len(combo_lines)):
+            status_msg = f"<b>Gateway:</b> {gateway_name}\n<b>By:</b> 𝗧َِ𝗡َِ𝗧"
+            if result == "CHARGED": status_text = "CHARGED"
+            elif result == "INSUFFICIENT_FUNDS": status_text = "APPROVED"
+            elif result == "DECLINED": status_text = "DECLINED"
+            else: status_text = "ORDER_NOT_APPROVED"  
+            buttons = {
+                "inline_keyboard": [
+                    [{"text": f"💳 {line}", "callback_data": "card"}],
+                    [{"text": f"📊 Status: {status_text}", "callback_data": "status"}],
+                    [
+                        {"text": f"💰 Charged ➜ [ {stats['charged']} ]", "callback_data": "charged"},
+                        {"text": f"✅ Approved ➜ [ {stats['approved']} ]", "callback_data": "approved"}
+                    ],
+                    [
+                        {"text": f"❌ Declined ➜ [ {stats['declined']} ]", "callback_data": "declined"},
+                        {"text": f"📂 Cards ➜ [ {stats['current']}/{stats['total']} ]", "callback_data": "cards"}
+                    ],
+                    [{"text": "🛑 STOP", "callback_data": f"stop_{chat_id}"}]
+                ]
+            }        
+            edit_telegram(chat_id, initial_message_id, status_msg, buttons)    
+            last_update_time = current_time
+
         if result in ["CHARGED", "INSUFFICIENT_FUNDS"]:
             bin_data = get_bin_info(line.split('|')[0])
             status_text_full = "<b>Charged - $1 (Refund)!</b>" if result == "CHARGED" else "<b>Approved - INSUFFICIENT_FUNDS!</b>"
@@ -249,146 +259,148 @@ def start_checker(chat_id, combo_lines, gateway_name, initial_message_id):
         f"<b>❌ Total Declined:</b> <b>{stats['declined']}</b>"
     )
     send_telegram(chat_id, final_msg)
-
     if chat_id in active_scans: del active_scans[chat_id]
+
+# دالة وسيطة لتشغيل معالجة الرسائل في خيط منفصل تلقائياً
+def process_message_async(update):
+    try:
+        if "callback_query" in update:
+            callback = update["callback_query"]
+            chat_id = callback["message"]["chat"]["id"]
+            data = callback["data"]
+
+            if data.startswith("stop_"):
+                if chat_id in active_scans:
+                    active_scans[chat_id]["stop"] = True
+                    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+                                data={"callback_query_id": callback["id"], "text": "🛑 Stopping scan..."})
+                else:
+                    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+                                data={"callback_query_id": callback["id"], "text": "❌ No active scan"})
+            elif data == "show_gateways":
+                gateways_msg = (
+                    f"<b>[ϟ] 𝐀𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞 𝐆𝐚𝐭𝐞𝐰𝐚𝐲𝐬 🔥</b>\n"
+                    f"<b>━━━━━━━━━━━━━━━━━━━━━━</b>\n"
+                    f"<b>[ϟ] 𝐏𝐚𝐲𝐏𝐚𝐥 𝐂𝐕𝐕 𝐂𝐮𝐬𝐭𝐨𝐦 [1$] - /pp</b>"
+                )
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+                            data={"callback_query_id": callback["id"], "text": "💎 Gateways", "show_alert": False})
+                send_telegram(chat_id, gateways_msg)
+            else:
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+                            data={"callback_query_id": callback["id"]})
+            return
+
+        message = update.get("message", {})
+        chat_id = message.get("chat", {}).get("id")
+        text = message.get("text", "")
+        user = message.get("from", {})
+
+        if not chat_id: return
+
+        if text == "/start":
+            user_name = user.get("first_name", "User")
+            username = user.get("username", "N/A")
+            user_id = user.get("id", "N/A")
+
+            welcome_msg = (
+                f"<b>[ϟ] 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐓𝐨 𝐂𝐚𝐫𝐝 𝐂𝐡𝐞𝐜𝐤𝐞𝐫 𝐁𝐨𝐭 🌟</b>\n"
+                f"<b>[ϟ] 𝐍𝐚𝐦𝐞:</b> <b>{user_name}</b>\n"
+                f"<b>[ϟ] 𝐔𝐬𝐞𝐫𝐧𝐚𝐦𝐞:</b> <b>@{username}</b>\n"
+                f"<b>[ϟ] 𝐈𝐃:</b> <b>{user_id}</b>\n\n"
+                f"<b>- - - - - - - - - - - - - - - - - - - - - -</b>\n"
+                f"<b>[ϟ] 𝐁𝐨𝐭 𝐁𝐲:</b> <b>𝗧َِ𝗡َِ𝗧</b>\n"
+                f"<b>[ϟ] 𝐃𝐞𝐯 𝐁𝐲:</b> <b>˛ َِ𝗧َِ𝗡َِ𝗧 .</b>"
+            )                 
+            welcome_buttons = {
+                "inline_keyboard": [
+                    [{"text": "💎 Gateways", "callback_data": "show_gateways"}]
+                ]
+            }
+            send_telegram(chat_id, welcome_msg, welcome_buttons)
+
+        elif text.startswith("/pp"):
+            parts = text.split(maxsplit=1)
+            if len(parts) < 2:
+                send_telegram(chat_id, "<b>❌ Usage:</b> <code>/pp card|month|year|cvv</code>\n<b>Example:</b> <code>/pp 4532015112830366|12|2025|123</code>")
+            else:
+                card_data = parts[1].strip()
+                if "|" in card_data:
+                    threading.Thread(target=check_single_card, args=(chat_id, card_data)).start()
+                else:
+                    send_telegram(chat_id, "<b>❌ Invalid format. Use:</b> <code>card|month|year|cvv</code>")
+
+        elif "document" in message:
+            doc = message["document"]
+            if doc["file_name"].endswith(".txt"):
+                file_id = doc["file_id"]
+                file_path_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}"
+                file_path_resp = requests.get(file_path_url).json()
+                if "result" in file_path_resp:
+                    file_path = file_path_resp["result"]["file_path"]
+                    file_content = requests.get(f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}").text
+
+                    lines = [l.strip() for l in file_content.split("\n") if "|" in l]
+                    if lines:
+                        if chat_id in active_scans:
+                            send_telegram(chat_id, "<b>⚠️ A scan is already running. Please stop it first.</b>")
+                        else:
+                            gateway_name = "#PayPal_Custom ($1.00)"
+                            initial_msg = f"<b>Gateway:</b> {gateway_name}\n<b>By:</b> 𝗧َِ𝗡َِ𝗧"
+
+                            initial_buttons = {
+                                "inline_keyboard": [
+                                    [{"text": f"💳 {lines[0]}", "callback_data": "card"}],
+                                    [{"text": "📊 Status: ORDER_NOT_APPROVED", "callback_data": "status"}],
+                                    [
+                                        {"text": "💰 Charged ➜ [ 0 ]", "callback_data": "charged"},
+                                        {"text": "✅ Approved ➜ [ 0 ]", "callback_data": "approved"}
+                                    ],
+                                    [
+                                        {"text": "❌ Declined ➜ [ 0 ]", "callback_data": "declined"},
+                                        {"text": f"📂 Cards ➜ [ 0/{len(lines)} ]", "callback_data": "cards"}
+                                    ],
+                                    [{"text": "🛑 STOP", "callback_data": f"stop_{chat_id}"}]
+                                ]
+                            }
+                            resp = send_telegram(chat_id, initial_msg, initial_buttons)
+
+                            if resp and resp.status_code == 200:
+                                message_id = resp.json().get("result", {}).get("message_id")
+                                active_scans[chat_id] = {"stop": False}
+                                thread = threading.Thread(target=start_checker, args=(chat_id, lines, gateway_name, message_id))
+                                active_scans[chat_id]["thread"] = thread
+                                thread.start()
+                            else:
+                                send_telegram(chat_id, "<b>❌ Failed to start scan.</b>")
+                    else:
+                        send_telegram(chat_id, "<b>❌ Invalid file format. Make sure it's a combo list.</b>")
+            else:
+                send_telegram(chat_id, "<b>❌ Please send a <code>.txt</code> file.</b>")
+    except Exception as e:
+        print(f"Async Task Error: {e}")
 
 def handle_updates():
     offset = 0
     print("Bot is running...")
     while True:
         try:
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset={offset}&timeout=30"
-            resp = requests.get(url, timeout=40)
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset={offset}&timeout=10"
+            resp = requests.get(url, timeout=15)
             if resp.status_code != 200:
-                time.sleep(5)
+                time.sleep(2)
                 continue
 
             updates = resp.json()
-
             for update in updates.get("result", []):
                 offset = update["update_id"] + 1
+                
+                # هنا التعديل السحري: كل رسالة أو كليك يتم تحويله لخلفية منفصلة فوراً
+                threading.Thread(target=process_message_async, args=(update,)).start()
 
-                if "callback_query" in update:
-                    callback = update["callback_query"]
-                    chat_id = callback["message"]["chat"]["id"]
-                    data = callback["data"]
-
-                    if data.startswith("stop_"):
-                        if chat_id in active_scans:
-                            active_scans[chat_id]["stop"] = True
-                            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-                                        data={"callback_query_id": callback["id"], "text": "🛑 Stopping scan..."})
-                        else:
-                            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-                                        data={"callback_query_id": callback["id"], "text": "❌ No active scan"})
-                    elif data == "show_gateways":
-                        gateways_msg = (
-                            f"<b>[ϟ] 𝐀𝐯𝐚𝐢𝐥𝐚𝐛𝐥𝐞 𝐆𝐚𝐭𝐞𝐰𝐚𝐲𝐬 🔥</b>\n"
-                            f"<b>━━━━━━━━━━━━━━━━━━━━━━</b>\n"
-                            f"<b>[ϟ] 𝐏𝐚𝐲𝐏𝐚𝐥 𝐂𝐕𝐕 𝐂𝐮𝐬𝐭𝐨𝐦 [1$] - /pp</b>"
-                        )
-                        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-                                    data={"callback_query_id": callback["id"], "text": "💎 Gateways", "show_alert": False})
-                        send_telegram(chat_id, gateways_msg)
-                    else:
-                        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-                                    data={"callback_query_id": callback["id"]})
-                    continue
-
-                message = update.get("message", {})
-                chat_id = message.get("chat", {}).get("id")
-                text = message.get("text", "")
-                user = message.get("from", {})
-
-                if not chat_id: continue
-
-                if text == "/start":
-                    user_name = user.get("first_name", "User")
-                    username = user.get("username", "N/A")
-                    user_id = user.get("id", "N/A")
-
-                    welcome_msg = (
-                        f"<b>[ϟ] 𝐖𝐞𝐥𝐜𝐨𝐦𝐞 𝐓𝐨 𝐂𝐚𝐫𝐝 𝐂𝐡𝐞𝐜𝐤𝐞𝐫 𝐁𝐨𝐭 🌟</b>\n"
-                        f"<b>[ϟ] 𝐍𝐚𝐦𝐞:</b> <b>{user_name}</b>\n"
-                        f"<b>[ϟ] 𝐔𝐬𝐞𝐫𝐧𝐚𝐦𝐞:</b> <b>@{username}</b>\n"
-                        f"<b>[ϟ] 𝐈𝐃:</b> <b>{user_id}</b>\n\n"
-                        f"<b>- - - - - - - - - - - - - - - - - - - - - -</b>\n"
-                        f"<b>[ϟ] 𝐁𝐨𝐭 𝐁𝐲:</b> <b>𝗧َِ𝗡َِ𝗧</b>\n"
-                        f"<b>[ϟ] 𝐃𝐞𝐯 𝐁𝐲:</b> <b>˛ َِ𝗧َِ𝗡َِ𝗧 .</b>"
-                    )                 
-                    welcome_buttons = {
-                        "inline_keyboard": [
-                            [{"text": "💎 Gateways", "callback_data": "show_gateways"}]
-                        ]
-                    }
-                    send_telegram(chat_id, welcome_msg, welcome_buttons)
-
-                elif text.startswith("/pp"):
-                    parts = text.split(maxsplit=1)
-                    if len(parts) < 2:
-                        send_telegram(chat_id, "<b>❌ Usage:</b> <code>/pp card|month|year|cvv</code>\n<b>Example:</b> <code>/pp 4532015112830366|12|2025|123</code>")
-                    else:
-                        card_data = parts[1].strip()
-                        if "|" in card_data:
-                            threading.Thread(target=check_single_card, args=(chat_id, card_data)).start()
-                        else:
-                            send_telegram(chat_id, "<b>❌ Invalid format. Use:</b> <code>card|month|year|cvv</code>")
-
-                elif "document" in message:
-                    doc = message["document"]
-                    if doc["file_name"].endswith(".txt"):
-                        file_id = doc["file_id"]
-                        file_path_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}"
-                        file_path_resp = requests.get(file_path_url).json()
-                        if "result" in file_path_resp:
-                            file_path = file_path_resp["result"]["file_path"]
-                            file_content = requests.get(f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}").text
-
-                            lines = [l.strip() for l in file_content.split("\n") if "|" in l]
-                            if lines:
-                                if chat_id in active_scans:
-                                    send_telegram(chat_id, "<b>⚠️ A scan is already running. Please stop it first.</b>")
-                                else:
-                                    gateway_name = "#PayPal_Custom ($1.00)"
-                                    initial_msg = f"<b>Gateway:</b> {gateway_name}\n<b>By:</b> 𝗧َِ𝗡َِ𝗧"
-
-                                    initial_buttons = {
-                                        "inline_keyboard": [
-                                            [{"text": f"💳 {lines[0]}", "callback_data": "card"}],
-                                            [{"text": "📊 Status: ORDER_NOT_APPROVED", "callback_data": "status"}],
-                                            [
-                                                {"text": "💰 Charged ➜ [ 0 ]", "callback_data": "charged"},
-                                                {"text": "✅ Approved ➜ [ 0 ]", "callback_data": "approved"}
-                                            ],
-                                            [
-                                                {"text": "❌ Declined ➜ [ 0 ]", "callback_data": "declined"},
-                                                {"text": f"📂 Cards ➜ [ 0/{len(lines)} ]", "callback_data": "cards"}
-                                            ],
-                                            [{"text": "🛑 STOP", "callback_data": f"stop_{chat_id}"}]
-                                        ]
-                                    }
-                                    resp = send_telegram(chat_id, initial_msg, initial_buttons)
-
-                                    if resp and resp.status_code == 200:
-                                        message_id = resp.json().get("result", {}).get("message_id")
-                                        active_scans[chat_id] = {"stop": False}
-                                        thread = threading.Thread(target=start_checker, args=(chat_id, lines, gateway_name, message_id))
-                                        active_scans[chat_id]["thread"] = thread
-                                        thread.start()
-                                    else:
-                                        send_telegram(chat_id, "<b>❌ Failed to start scan.</b>")
-                            else:
-                                send_telegram(chat_id, "<b>❌ Invalid file format. Make sure it's a combo list.</b>")
-                    else:
-                        send_telegram(chat_id, "<b>❌ Please send a <code>.txt</code> file.</b>")
         except Exception as e:
             print(f"Loop Error: {e}")
-            time.sleep(5)
+            time.sleep(2)
 
 if __name__ == "__main__":
     handle_updates()
-
-
-#@B_Q_5
-
-# ˛ َِ𝗧َِ𝗡َِ𝗧 .
